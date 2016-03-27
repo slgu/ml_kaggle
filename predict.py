@@ -65,10 +65,32 @@ def split(datas):
     return xs, ys
 
 
+# to prevent -1 data
+# just first 4 columns
+def map_to_high_dimension(vec):
+    v1 = [0] * (variance[0] + 1)
+    v1[vec[0]] = 1
+    v2 = [0] * (variance[1] + 1)
+    v2[vec[1]] = 1
+    v3 = [0] * (variance[2] + 1)
+    v3[vec[2]] = 1
+    v4 = [0] * (variance[3] + 1)
+    v4[vec[3]] = 1
+    return v1 + v2 + v3 + v4 + vec[4:]
+
+
+def map_to_high_dimension_arr(datas):
+    l = len(datas)
+    res = []
+    for i in range(0, l):
+        res.append(map_to_high_dimension(datas[i]))
+    return res
+
+
 def boostdecision():
-    return AdaBoostClassifier(DecisionTreeClassifier(max_depth=6),
+    return AdaBoostClassifier(DecisionTreeClassifier(max_depth=8),
                               algorithm="SAMME",
-                              n_estimators=20)
+                              n_estimators=80)
 
 
 def decision():
@@ -151,7 +173,7 @@ def test_with_rate_avg(model, datas):
 
 
 def test_with_rate(model, datas):
-     # return labels
+    # return labels
     l = len(datas)
     labels = []
     for i in range(0, l):
@@ -181,6 +203,10 @@ def test_with_avg(model, datas):
     return labels
 
 
+def test(model, datas):
+    return model.predict(datas)
+
+
 def save_file(labels, filename):
     with open(filename, "w") as f:
         f.write("Id,Prediction\n")
@@ -195,7 +221,11 @@ def main():
     test_datas = read_test_data("data/quiz.csv")
     # enhance 1 data 10 times
     xs, ys = enhance(datas, 10)
+    # map_to_high_dimension
+    xs = map_to_high_dimension_arr(xs)
+    test_datas = map_to_high_dimension_arr(test_datas)
     print len(xs)
+    print len(xs[0])
     model = boostdecision()
     print "begin training"
     model.fit(xs, ys)
@@ -203,10 +233,11 @@ def main():
     # begin validate
     # begin test
     print "begin test"
-    labels = test_with_rate(model, test_datas)
+    labels = test(model, test_datas)
     print  "begin write to file"
-    save_file(labels, "data/quiz_out.csv")
+    save_file(labels, "data/quiz_out_8.csv")
     print "all done"
+
 
 if __name__ == "__main__":
     main()
