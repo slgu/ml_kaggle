@@ -1,243 +1,111 @@
+__author__ = 'slgu1'
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
 
-# sex,city,build,race,pct,pos_knife,pos_handgun,pos_rifle,pos_assault,pos_machgun,
-# pos_otherweap,pos_illegal,cs_susp_obj,rf_unseasonal_attire,cs_crime_attire,cs_susp_bulge,
-# cs_match_desc,cs_recon,cs_lookout,cs_drug_trade,cs_covert,rf_violent,cs_violent,ac_crime_area,ac_crime_time,
-# ac_crime_assoc,ac_avoid_cops,label
-# 27 features
-variance = [2, 5, 4, 8, 78] + [2] * 22
+map_feature = {}
 
+map_category_num = {}
 
-def read_data(filename):
-    desc = []
-    datas = []
+def read_feature_data(filename):
+    global map_feature
     with open(filename, "r") as f:
-        # first read description
-        str = f.readline().strip()
-        desc = str.split()
         while True:
             str = f.readline()
-            if str is None or str == "" or str.strip() == "":
+            if str is None or str.strip() == "":
+                break
+            arr = str.strip().split(" ")
+            feature_name = arr[0]
+            map_feature[feature_name] = {}
+            if arr[1] == "numeric":
+                # numeric value
+                continue
+            # get rid of "v" suffix
+            category_features = [item[1:] for item in arr[1:]]
+            cnt = 0
+            for item in category_features:
+                map_feature[feature_name][item] = cnt
+                cnt = cnt + 1
+
+def vsm(feature_names, vec):
+    for idx in range(0, len(vec)):
+        feature_name = feature_names[idx]
+        if len(map_feature[feature_name]) == 0:
+            # numeric
+            vec[idx] = float(vec[idx])
+            pass
+        else:
+            # map index
+            vec[idx] = map_feature[feature_name][vec[idx]]
+
+
+def read_train_data(filename):
+    global map_feature
+    vecs = []
+    labels = []
+    with open(filename, "r") as f:
+        # read feature name
+        str = f.readline().strip()
+        feature_names = str.split(",")[:-1]
+        while True:
+            str = f.readline()
+            if str is None or str.strip() == "":
                 break
             vec = str.strip().split(",")
-            # ignore Z data
-            if "Z" in vec:
-                continue
-            # deal with sex
-            if vec[0] == "M":
-                vec[0] = 0
-            else:
-                vec[0] = 1
-            # deal with city
-            vec[1] = int(vec[1][5:]) - 1
-            # deal with build
-            vec[2] = int(vec[2][6:]) - 1
-            # deal with race
-            vec[3] = int(vec[3][5:]) - 1
-            # deal with pct
-            vec[4] = int(vec[4][4:])
-            vec = [int(item) for item in vec]
-            datas.append(vec)
-    return datas
+            label = int(vec[-1])
+            if label != -1 and label != 1:
+                print("data error")
+                exit(-1)
+            vec = vec[:-1]
+            vsm(feature_names, vec)
+            labels.append(label)
+            vecs.append(vec)
+    return vecs, labels
 
 
-def enhance(datas, rate):
-    xs = []
-    ys = []
-    for vec in datas:
-        if vec[-1] == 1:
-            for i in range(0, rate):
-                xs.append(vec[0:-1])
-                ys.append(vec[-1])
-        else:
-            xs.append(vec[0:-1])
-            ys.append(vec[-1])
-    return xs, ys
+def dtmodel(depth):
+    return DecisionTreeClassifier(max_depth=depth)
 
 
-def split(datas):
-    xs = []
-    ys = []
-    for vec in datas:
-        xs.append(vec[0:-1])
-        ys.append(vec[-1])
-    return xs, ys
-
-
-# to prevent -1 data
-# just first 4 columns
-def map_to_high_dimension(vec):
-    v1 = [0] * (variance[0] + 1)
-    v1[vec[0]] = 1
-    v2 = [0] * (variance[1] + 1)
-    v2[vec[1]] = 1
-    v3 = [0] * (variance[2] + 1)
-    v3[vec[2]] = 1
-    v4 = [0] * (variance[3] + 1)
-    v4[vec[3]] = 1
-    return v1 + v2 + v3 + v4 + vec[4:]
-
-
-def map_to_high_dimension_arr(datas):
-    l = len(datas)
-    res = []
-    for i in range(0, l):
-        res.append(map_to_high_dimension(datas[i]))
-    return res
-
-
-def boostdecision():
-    return AdaBoostClassifier(DecisionTreeClassifier(max_depth=8),
+def boost_dtmodel(depth, round):
+    return AdaBoostClassifier(DecisionTreeClassifier(max_depth=depth),
                               algorithm="SAMME",
-                              n_estimators=80)
-
-
-def decision():
-    return DecisionTreeClassifier(max_depth=6)
+                              n_estimators=round)
 
 
 def read_test_data(filename):
-    datas = []
+    vecs = []
     with open(filename, "r") as f:
-        # first read description
-        f.readline().strip()
+        # read feature name
+        str = f.readline().strip()
+        feature_names = str.split(",")
         while True:
             str = f.readline()
-            if str is None or str == "" or str.strip() == "":
+            if str is None or str.strip() == "":
                 break
             vec = str.strip().split(",")
-            for i in range(len(vec)):
-                if vec[i] == "Z":
-                    vec[i] = -1
-
-            # ignore Z data
-            if "Z" in vec:
-                continue
-            # deal with sex
-            if vec[0] == "M":
-                vec[0] = 0
-            elif vec[0] == "F":
-                vec[0] = 1
-            # deal with city
-            if vec[1] != -1:
-                vec[1] = int(vec[1][5:]) - 1
-            # deal with build
-            if vec[2] != -1:
-                vec[2] = int(vec[2][6:]) - 1
-            # deal with race
-            if vec[3] != -1:
-                vec[3] = int(vec[3][5:]) - 1
-            # deal with pct
-            if vec[4] != -1:
-                vec[4] = int(vec[4][4:])
-            vec = [int(item) for item in vec]
-            datas.append(vec)
-    return datas
+            vsm(feature_names, vec)
+            vecs.append(vec)
+    return vecs
 
 
-# generate all possible combination of -1
-def gen(vec, i):
-    global variance
-    if len(vec) == 0:
-        return [[]]
-    datas = gen(vec[1:], i + 1)
-    res = []
-    for data in datas:
-        if vec[0] == -1:
-            # all combination
-            for j in range(0, variance[i]):
-                res.append([j] + data)
-        else:
-            res.append([vec[0]] + data)
-    return res
-
-
-def test_with_rate_avg(model, datas):
-    # return labels
-    l = len(datas)
-    labels = []
-    for i in range(0, l):
-        gen_datas = gen(datas[i], 0)
-        res = model.predict_proba(gen_datas)
-        len_choice = len(res)
-        prob_not_arrest = 0
-        for j in range(0, len_choice):
-            prob_not_arrest += res[j][0]
-        prob_not_arrest /= len_choice
-        if prob_not_arrest > (1 - prob_not_arrest) * 10:
-            labels.append(-1)
-        else:
-            labels.append(1)
-    return labels
-
-
-def test_with_rate(model, datas):
-    # return labels
-    l = len(datas)
-    labels = []
-    for i in range(0, l):
-        prob_not_arrest = model.predict_proba(datas[i])[0][0]
-        if prob_not_arrest > (1 - prob_not_arrest) * 10:
-            labels.append(-1)
-        else:
-            labels.append(1)
-    return labels
-
-
-def test_with_avg(model, datas):
-    l = len(datas)
-    labels = []
-    for i in range(0, l):
-        gen_datas = gen(datas[i], 0)
-        res = model.predict_proba(gen_datas)
-        len_choice = len(res)
-        prob_not_arrest = 0
-        for j in range(0, len_choice):
-            prob_not_arrest += res[j][0]
-        prob_not_arrest /= len_choice
-        if prob_not_arrest > 0.5:
-            labels.append(-1)
-        else:
-            labels.append(1)
-    return labels
-
-
-def test(model, datas):
-    return model.predict(datas)
-
-
-def save_file(labels, filename):
+def save(labels, filename):
     with open(filename, "w") as f:
         f.write("Id,Prediction\n")
-        l = len(labels)
-        for i in range(0, l):
-            f.write("%d,%d\n" % (i + 1, labels[i]))
+        for idx in range(0, len(labels)):
+            f.write("%d,%d\n" % (idx + 1, labels[idx]))
 
 
-def main():
-    print "begin read data"
-    datas = read_data("data/data.csv")
-    test_datas = read_test_data("data/quiz.csv")
-    # enhance 1 data 10 times
-    xs, ys = enhance(datas, 10)
-    # map_to_high_dimension
-    xs = map_to_high_dimension_arr(xs)
-    test_datas = map_to_high_dimension_arr(test_datas)
-    print len(xs)
-    print len(xs[0])
-    model = boostdecision()
-    print "begin training"
-    model.fit(xs, ys)
-    print "training done"
-    # begin validate
-    # begin test
-    print "begin test"
-    labels = test(model, test_datas)
-    print  "begin write to file"
-    save_file(labels, "data/quiz_out_8.csv")
-    print "all done"
+def map_high_dimension(vecs):
 
 
 if __name__ == "__main__":
-    main()
+    read_feature_data("data/field_types.txt")
+    datas, labels = read_train_data("data/data.csv")
+    test_datas = read_test_data("data/quiz.csv")
+    model = boost_dtmodel(8, 200)
+    print("begin fit data")
+    model.fit(datas, labels)
+    print("train model done")
+    predict_labels = model.predict(test_datas)
+    save(predict_labels, "data/quiz_out.csv")
+    # just run a raw decision tree
