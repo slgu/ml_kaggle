@@ -20,6 +20,8 @@ average = [-1] * 53
 variance = [-1] * 53
 ignore = [False] * 53
 
+
+# this string is the field_type.txt content which is hard-code to this strign
 hard_code_ftype = '''0 vdctc vdef vdem vdemnum vel vindef vnull vnum vnumpro vposs vposspro vpro vrelpro
 2 numeric
 5 vacomp vadvcl vadvmod vagent vamod vattr vaux vcc vccomp vconj_and vconj_but vconj_just vconj_negcc vconj_or vcsubj vdep vdet vdobj vexpl viobj vmark vna vneg vnn vnpadvmod vnsubj vnsubjpass vnum vpartmod vpcomp vpobj vposs vpredet vprep vprep_about vprep_above vprep_across vprep_across_from vprep_after vprep_ahead_of vprep_along vprep_alongside vprep_apart_from vprep_around vprep_as vprep_at vprep_away_from vprep_because vprep_because_of vprep_before vprep_below vprep_beneath vprep_beside vprep_between vprep_beyond vprep_by vprep_close_to vprep_down vprep_far_from vprep_following vprep_for vprep_from vprep_if vprep_in vprep_in_front_of vprep_inside vprep_instead_of vprep_into vprep_it's vprep_like vprep_near vprep_nearer vprep_next_to vprep_of vprep_off vprep_on vprep_on_top_of vprep_onto vprep_opposite vprep_out_of vprep_outside vprep_outside_of vprep_over vprep_past vprep_than vprep_that vprep_that's vprep_through vprep_to vprep_toward vprep_towards vprep_under vprep_underneath vprep_until vprep_up vprep_where's vprep_with vprep_with_respect_to vprep_within vprepc_beneath vprepc_by vprepc_of vprepc_to vprepc_towards vprepc_under vprepc_with vquantmod vrcmod vrel vroot vtmod vxcomp
@@ -74,6 +76,7 @@ hard_code_ftype = '''0 vdctc vdef vdem vdemnum vel vindef vnull vnum vnumpro vpo
 64 numeric
 '''
 
+# read the feature field and map the string to index
 def read_feature_data():
     global map_feature
     f = StringIO.StringIO(hard_code_ftype)
@@ -104,6 +107,8 @@ def read_feature_data():
 # feature name 58 idx = 46
 # 5 14 23
 # 56 57 58
+
+# change a train_data item to a numerical space vector
 def vsm(feature_names, vec):
     global max_values
     global min_values
@@ -127,6 +132,9 @@ def vsm(feature_names, vec):
             vec[idx] = map_feature[feature_name][vec[idx]]
     if wuliu + "_" + wuqi !=  wuba and wuliu != "na" and wuqi != "na" and wuba != "na":
         pass
+
+# read the training data file to obtain X, Y
+
 
 def read_train_data(filename):
     global map_feature
@@ -155,24 +163,42 @@ def read_train_data(filename):
     return vecs, labels
 
 
+# a decison tree model
+
+
 def dtmodel(depth):
     return DecisionTreeClassifier(max_depth=depth)
+
+
+# adaboost model
 
 
 def boost_dtmodel(depth, round):
     return AdaBoostClassifier(DecisionTreeClassifier(max_depth=depth),
                               algorithm="SAMME",
                               n_estimators=round)
+# forest model
+
 
 def forestmodel(round):
     return RandomForestClassifier(n_estimators=round)
 
+# extra tree model
+
+
+
 def extramodel(round):
     return ExtraTreesClassifier(n_estimators=round, max_depth=None, min_samples_split=1, random_state=0)
+
+
+# ridge model
+
 
 def ridge_model(a):
     return Ridge(alpha=a)
 
+
+# read the test data file
 
 def read_test_data(filename):
     global feature_names
@@ -191,6 +217,7 @@ def read_test_data(filename):
     return vecs
 
 
+# save the label to output.csv
 def save(labels, filename):
     with open(filename, "w") as f:
         f.write("Id,Prediction\n")
@@ -198,6 +225,7 @@ def save(labels, filename):
             f.write("%d,%d\n" % (idx + 1, labels[idx]))
 
 
+# when using ridge regression, map categorical data by one-hot encoding
 def map_high_dimension(vec):
     global map_category_num
     global map_feature
@@ -225,6 +253,7 @@ def map_high_dimension_arr(vecs):
     return res_vecs
 
 
+# ignore feature is max and min value is the same
 def get_ignore():
     global max_values
     global min_values
@@ -235,10 +264,7 @@ def get_ignore():
             ignore[i] = True
 
 
-def set_ignore():
-    global ignore
-    ignore[12] = True
-    ignore[46] = True
+# clear the vector by ignore feature
 
 
 def ignore_clear(datas):
